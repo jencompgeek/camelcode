@@ -33,6 +33,16 @@ GET [http://localhost:9000/latlng/POSTCODE](http://localhost:9000/latlng/BS106TF
 {"latitude":51.505615,"longitude":-2.6120315}
 ```
 
+Deploy to Cloud Foundry
+----------
+This project includes a manifest.yml file that can be used to push the app to Cloud Foundry.
+
+The value of "mem" in the manifest may be need to be adjusted depending on how much data you place in the codepointopen directory.  Rough tests showed 1.4G used for files ab.csv-de.csv.
+
+Steps:
+play -Dconfig.file=conf/cloud.conf clean pdist  (not a typo, pdist is a new task to include codepointopen files in the dist)
+vmc push
+
 Technology
 ----------
 

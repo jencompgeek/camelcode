@@ -1,0 +1,16 @@
+--- 
+applications: 
+  dist/: 
+    name: camelcode
+    framework: 
+      name: play
+      info: 
+        mem: 128M
+        description: Play Framework Application
+        exec: 
+    url: ${name}.${target-base}
+    mem: 2G
+    instances: 1
+    services: 
+      mongodb-6b117: 
+        type: mongodb

@@ -1,24 +1,23 @@
 package modules;
 
+import java.net.UnknownHostException;
+
+import models.Model;
+import play.Application;
+import play.Logger;
+
 import com.google.code.morphia.Datastore;
 import com.google.code.morphia.Morphia;
 import com.google.code.morphia.mapping.DefaultCreator;
-import com.google.code.morphia.mapping.MappedField;
-import com.google.code.morphia.mapping.Mapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Injector;
 import com.google.inject.Provides;
 import com.mongodb.DBObject;
 import com.mongodb.Mongo;
-import com.mongodb.MongoURI;
-import models.Model;
-import play.Application;
-import play.Logger;
-
-import java.net.UnknownHostException;
 
 /**
  * @author Mathias Bogaert
+ * @author Jennifer Hickey
  */
 public class MorphiaModule extends AbstractModule {
     @Override
@@ -39,9 +38,15 @@ public class MorphiaModule extends AbstractModule {
         morphia.mapPackage("models");
 
         try {
-            final Mongo mongo = new Mongo(new MongoURI(application.configuration().getString("mongodb.uri")));
-
-            Datastore datastore = morphia.createDatastore(mongo, application.configuration().getString("mongodb.db"));
+        	final Mongo mongo = new Mongo(application.configuration().getString("mongodb.host"),application.configuration().getInt("mongodb.port"));
+        	String user = application.configuration().getString("mongodb.username");
+        	String password = application.configuration().getString("mongodb.password");
+        	Datastore datastore;
+        	if(user == null || password == null) {
+        		datastore = morphia.createDatastore(mongo, application.configuration().getString("mongodb.db"));
+        	}else {
+        	    datastore = morphia.createDatastore(mongo, application.configuration().getString("mongodb.db"),user,password.toCharArray());
+        	}
             datastore.ensureIndexes();
 
             Logger.info("Connected to MongoDB [" + mongo.debugString() + "] database [" + datastore.getDB().getName() + "]");

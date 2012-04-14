@@ -38,7 +38,68 @@ object ApplicationBuild extends Build {
     "com.google.code.morphia" % "morphia-logging-slf4j" % "0.99"
   )
 
+  val pdist = TaskKey[File]("pdist", "Build the standalone application package including codepoint data")
+
+  val pdistTask = (baseDirectory, playPackageEverything, dependencyClasspath in Runtime, target, normalizedName, version) map { (root, packaged, dependencies, target, id, version) =>
+
+    import sbt.NameFilter._
+
+    val dist = root / "dist"
+    val packageName = id + "-" + version
+    val zip = dist / (packageName + ".zip")
+
+    IO.delete(dist)
+    IO.createDirectory(dist)
+
+    val libs = {
+      dependencies.filter(_.data.ext == "jar").map { dependency =>
+        dependency.data -> (packageName + "/lib/" + (dependency.metadata.get(AttributeKey[ModuleID]("module-id")).map { module =>
+          module.organization + "." + module.name + "-" + module.revision + ".jar"
+        }.getOrElse(dependency.data.getName)))
+      } ++ packaged.map(jar => jar -> (packageName + "/lib/" + jar.getName))
+    }
+
+    val start = target / "start"
+
+    val config = Option(System.getProperty("config.file"))
+
+    IO.write(start,
+      """#!/usr/bin/env sh
+
+exec java $* -cp "`dirname $0`/lib/*" """ + config.map(_ => "-Dconfig.file=`dirname $0`/application.conf ").getOrElse("") + """play.core.server.NettyServer `dirname $0`
+""" /* */ )
+    val scripts = Seq(start -> (packageName + "/start"))
+
+    val other = Seq((root / "README") -> (packageName + "/README"))
+
+    val datadir = root / "codepointopen"
+    val datafiles = datadir.list
+    val data = datafiles.filter(_ != "done").map { location =>
+      IO.copyFile(datadir / location, target / "codepointopen" / location)
+      target / "codepointopen" / location -> (packageName + "/codepointopen/" +  location)
+    }
+
+    val productionConfig = target / "application.conf"
+
+    val prodApplicationConf = config.map { location =>
+
+      IO.copyFile(new File(location), productionConfig)
+      Seq(productionConfig -> (packageName + "/application.conf"))
+    }.getOrElse(Nil)
+
+    IO.zip(libs ++ scripts ++ other ++ data ++ prodApplicationConf, zip)
+    IO.delete(start)
+    IO.delete(productionConfig)
+
+    println()
+    println("Your application is ready in " + zip.getCanonicalPath)
+    println()
+
+    zip
+  }
+
   val main = PlayProject(appName, appVersion, appDependencies, mainLang = JAVA).settings(
+    pdist <<= pdistTask,
     lessEntryPoints <<= baseDirectory(_ ** "camelcode.less"),
 
     resolvers += "Local Maven Repository" at "file://" + Path.userHome + "/.m2/repository",
